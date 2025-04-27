@@ -24,12 +24,8 @@ def main():
 
     dist_util.setup_dist()
     
-    print('DIST UTIL SETUPPED')
+    logger.configure('./logs-edm-train')
     
-    logger.configure('./logs-edm-train-test')
-    
-    print('LOGGER CONFIGURED')
-
     logger.log("creating model and diffusion...")
     
     dict_for_training = args_to_dict(

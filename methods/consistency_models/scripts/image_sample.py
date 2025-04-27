@@ -26,7 +26,7 @@ def main():
     args = create_argparser().parse_args()
 
     dist_util.setup_dist()
-    logger.configure('./logs-edm-sample-13123123')
+    logger.configure('./logs-sample')
 
     if "consistency" in args.training_mode:
         distillation = True
