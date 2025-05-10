@@ -710,7 +710,7 @@ class UNetModel(nn.Module):
         self.middle_block.apply(convert_module_to_f32)
         self.output_blocks.apply(convert_module_to_f32)
 
-    def forward(self, x, timesteps, y=None):
+    def forward(self, x, timesteps, y=None, return_bottleneck=False):
         """
         Apply the model to an input batch.
 
@@ -736,6 +736,10 @@ class UNetModel(nn.Module):
             h = module(h, emb)
             hs.append(h)
 
+
+        if return_bottleneck:
+            return h
+        
         h = self.middle_block(h, emb)
 
         for module in self.output_blocks:

@@ -53,7 +53,7 @@ class EDMGuidance(nn.Module):
                 nn.Conv2d(in_channels=768, out_channels=768, kernel_size=4, stride=4, padding=0),  # 16x16 -> 4x4
                 nn.GroupNorm(num_groups=32, num_channels=768),
                 nn.SiLU(),
-                nn.Conv2d(in_channels=768, out_channels=1,   kernel_size=1, stride=1, padding=0),
+                nn.Conv2d(in_channels=768, out_channels=1, kernel_size=4, stride=1, padding=0)  # 4x4 -> 1x1
             )
             self.cls_pred_branch.requires_grad_(True)        
 

@@ -74,7 +74,7 @@ def sample_onestep(
 
     rescaled_t = 1000 * 0.25 * torch.log(sigmas + 1e-44)
         
-    model_output = model(c_in * x, rescaled_t.squeeze(), class_labels)
+    model_output = model(c_in * x, rescaled_t.squeeze(), class_labels, return_bottleneck)
     
     if return_bottleneck:
         return model_output

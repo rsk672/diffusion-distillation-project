@@ -226,7 +226,8 @@ class Trainer:
         # Extract the images from the dictionary and normalize them.
         # scaled from [0,1] to [-1,1].
         real_image = real_dict["images"] * 2.0 - 1.0 
-        real_label = self.eye_matrix[real_dict["class_labels"].squeeze(dim=1)]
+        #real_label = self.eye_matrix[real_dict["class_labels"].squeeze(dim=1)]
+        real_label = real_dict["class_labels"].squeeze(dim=1)
 
         real_train_dict = {
             "real_image": real_image,
