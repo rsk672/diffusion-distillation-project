@@ -1,6 +1,6 @@
 # A single unified model that wraps both the generator and discriminator
 from main.consistency.edm_guidance import EDMGuidance
-from main.consistency.edm_network import sample_onestep, get_edm_network
+from main.consistency.edm_network import sample_onestep, sample_onestep_consistency, get_edm_network
 from torch import nn
 import torch 
 import copy
@@ -13,11 +13,17 @@ class EDMUniModel(nn.Module):
 
         self.guidance_min_step = self.guidance_model.min_step
         self.guidance_max_step = self.guidance_model.max_step
+        
+        self.use_consistency = True if args.consistency_model_path is not None else False
 
         if args.initialie_generator:
             # self.feedforward_model = copy.deepcopy(self.guidance_model.fake_unet)
-            self.feed_forwardmodel = get_edm_network()
-            self.feed_forwardmodel.load_state_dict(torch.load(args.consistency_model_path, map_location="cpu"), strict=True)
+            self.feedforward_model = get_edm_network()
+            if self.use_consistency:
+                self.feedforward_model.load_state_dict(torch.load(args.consistency_model_path, map_location="cpu"), strict=True)
+            else:
+                print(f'loading edm from {args.teacher_model_path}')
+                self.feedforward_model.load_state_dict(torch.load(args.teacher_model_path, map_location="cpu"), strict=True)
         else:
             raise NotImplementedError("Only support initializing generator from guidance model.")
 
@@ -40,11 +46,19 @@ class EDMUniModel(nn.Module):
             if not compute_generator_gradient:
                 with torch.no_grad():
                     # generated_image = self.feedforward_model(scaled_noisy_image, timestep_sigma, labels)
-                    generated_image = sample_onestep(self.feedforward_model, scaled_noisy_image, labels, timestep_sigma, sigma_data=0.5)
+                    if self.use_consistency:
+                        generated_image = sample_onestep_consistency(self.feedforward_model, scaled_noisy_image, labels, timestep_sigma, sigma_data=0.5)
+                    else:
+                        print('sampling as EDM!')
+                        generated_image = sample_onestep(self.feedforward_model, scaled_noisy_image, labels, timestep_sigma, sigma_data=0.5)
             else:            
                 # generated_image = self.feedforward_model(scaled_noisy_image, timestep_sigma, labels)
-                generated_image = sample_onestep(self.feedforward_model, scaled_noisy_image, labels, timestep_sigma, sigma_data=0.5)
-
+                if self.use_consistency:
+                    generated_image = sample_onestep_consistency(self.feedforward_model, scaled_noisy_image, labels, timestep_sigma, sigma_data=0.5)
+                else:
+                    print('sampling as EDM!')
+                    generated_image = sample_onestep(self.feedforward_model, scaled_noisy_image, labels, timestep_sigma, sigma_data=0.5)
+                    
             if compute_generator_gradient:
                 generator_data_dict = {
                     "image": generated_image,

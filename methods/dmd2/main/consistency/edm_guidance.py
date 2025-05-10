@@ -8,6 +8,7 @@ import copy
 
 def get_sigmas_karras(n, sigma_min, sigma_max, rho=7.0):
     # from https://github.com/crowsonkb/k-diffusion
+    print(f'getting sigmas: {n=} {sigma_min=} {sigma_max=} {rho=}')
     ramp = torch.linspace(0, 1, n)
     min_inv_rho = sigma_min ** (1 / rho)
     max_inv_rho = sigma_max ** (1 / rho)
