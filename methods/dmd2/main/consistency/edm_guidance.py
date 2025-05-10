@@ -47,13 +47,13 @@ class EDMGuidance(nn.Module):
 
         if self.gan_classifier:
             self.cls_pred_branch = nn.Sequential(
-                nn.Conv2d(kernel_size=4, in_channels=256, out_channels=768, stride=2, padding=1), # 8x8 -> 4x4
+                nn.Conv2d(in_channels=3, out_channels=768, kernel_size=4, stride=2, padding=1),  # 32x32 -> 16x16
                 nn.GroupNorm(num_groups=32, num_channels=768),
                 nn.SiLU(),
-                nn.Conv2d(kernel_size=4, in_channels=768, out_channels=768, stride=4, padding=0), # 4x4 -> 1x1
+                nn.Conv2d(in_channels=768, out_channels=768, kernel_size=4, stride=4, padding=0),  # 16x16 -> 4x4
                 nn.GroupNorm(num_groups=32, num_channels=768),
                 nn.SiLU(),
-                nn.Conv2d(kernel_size=1, in_channels=768, out_channels=1, stride=1, padding=0), # 1x1 -> 1x1
+                nn.Conv2d(in_channels=768, out_channels=1,   kernel_size=1, stride=1, padding=0),
             )
             self.cls_pred_branch.requires_grad_(True)        
 
