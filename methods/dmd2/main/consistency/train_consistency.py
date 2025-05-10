@@ -14,6 +14,9 @@ import wandb
 import torch 
 import time 
 import os
+from piq import LPIPS
+from main.consistency.calculate_fid import create_evaluator, load_inception_stats_from_json, sample_for_fid, calculate_inception_stats, calculate_fid_from_inception_stats
+from main.consistency.calculate_image_diversity import calculate_image_diversity 
 
 class Trainer:
     def __init__(self, args):
@@ -137,6 +140,8 @@ class Trainer:
         self.resolution = args.resolution 
         self.log_iters = args.log_iters
         self.wandb_iters = args.wandb_iters
+        self.fid_iters = args.fid_iters
+        self.image_diversity_iters = args.image_diversity_iters
         self.conditioning_sigma = args.conditioning_sigma 
 
         self.label_dim = args.label_dim
@@ -146,6 +151,18 @@ class Trainer:
 
         if args.checkpoint_path is not None:
             self.load(args.checkpoint_path)
+            
+        # for FID evaluation:
+        evaluator, evaluator_kwargs, feature_dim = create_evaluator(args.detector_url)
+        self.evaluator = accelerator.prepare(evaluator)
+        self.evaluator_kwargs = evaluator_kwargs
+        self.feature_dim = feature_dim
+        ref_mu, ref_sigma = load_inception_stats_from_json(args.ref_path)
+        self.ref_mu = ref_mu
+        self.ref_sigma = ref_sigma
+        
+        # for ImageDiversity evaluation:
+        self.lpips_loss_func = LPIPS(replace_pooling=True, reduction="none").to(accelerator.device)
 
         if self.accelerator.is_main_process:
             run = wandb.init(config=args, dir=self.output_path, **{"mode": "online", "entity": args.wandb_entity, "project": args.wandb_project})
@@ -154,6 +171,8 @@ class Trainer:
             print(f"run dir: {run.dir}")
             self.wandb_folder = run.dir
             os.makedirs(self.wandb_folder, exist_ok=True)
+        
+            
 
     def load(self, checkpoint_path):
         # Please note that, after loading the checkpoints, all random seed, learning rate, etc.. will be reset to align with the checkpoint.
@@ -292,7 +311,7 @@ class Trainer:
         # combine the two dictionaries 
         loss_dict = {**generator_loss_dict, **guidance_loss_dict}
         log_dict = {**generator_log_dict, **guidance_log_dict}
-
+        
         if self.step % self.wandb_iters == 0:
             log_dict['generated_image'] = accelerator.gather(log_dict['generated_image'])
             log_dict['dmtrain_grad'] = accelerator.gather(log_dict['dmtrain_grad'])
@@ -303,6 +322,19 @@ class Trainer:
         if accelerator.is_main_process and self.step % self.wandb_iters == 0:
             # TODO: Need more refactoring here 
             with torch.no_grad():
+                # FID calculation:
+                if self.step % self.fid_iters == 0:
+                    all_images_tensor = sample_for_fid(accelerator, self.model.feedforward_model, args)
+                    pred_mu, pred_sigma = calculate_inception_stats(all_images_tensor, self.evaluator, accelerator, self.evaluator_kwargs, self.feature_dim, args.batch_size)
+                
+                    fid = calculate_fid_from_inception_stats(pred_mu, pred_sigma, self.ref_mu, self.ref_sigma)
+                    log_dict['fid'] = fid
+                    
+                # Image Diversity calculation
+                if self.step % self.image_diversity_iters == 0:
+                    image_diversity_score = calculate_image_diversity(accelerator, self.model.feedforward_model, self.lpips_loss_func, args)
+                    log_dict['image_diveristy_score'] = image_diversity_score
+                    
                 generated_image = log_dict['generated_image']
                 generated_image_brightness = (generated_image*0.5+0.5).clamp(0, 1).mean() 
                 generated_image_std =  (generated_image*0.5+0.5).clamp(0, 1).std()
@@ -422,6 +454,18 @@ class Trainer:
                             "hist_pred_realism_on_real": wandb.Image(hist_pred_realism_on_real)
                         }
                     )
+                
+                # log fid: 
+                if 'fid' in log_dict:
+                    data_dict.update({
+                        'fid': log_dict['fid']
+                    })
+                    
+                # log image diversity: 
+                if 'image_diveristy_score' in log_dict:
+                    data_dict.update({
+                        'image_diveristy_score': log_dict['image_diveristy_score']
+                    })
 
                 wandb.log(
                     data_dict,
@@ -450,6 +494,7 @@ class Trainer:
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--consistency_model_path", type=str, default=None)
     parser.add_argument("--teacher_model_path", type=str)
     parser.add_argument("--output_path", type=str)
     parser.add_argument("--train_iters", type=int, default=1000000)
@@ -463,6 +508,8 @@ def parse_args():
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
     parser.add_argument("--wandb_entity", type=str)
     parser.add_argument("--wandb_project", type=str)
+    parser.add_argument('--fid_iters', type=int, default=1000)
+    parser.add_argument('--image_diversity_iters', type=int, default=15000)
     parser.add_argument("--wandb_iters", type=int, default=100)
     parser.add_argument("--wandb_name", type=str, required=True)
     parser.add_argument("--label_dim", type=int, default=10)
@@ -497,6 +544,11 @@ def parse_args():
     parser.add_argument("--no_save", action="store_true")
     parser.add_argument("--cache_dir", type=str, default="")
     parser.add_argument("--generator_ckpt_path", type=str)
+    
+    parser.add_argument("--ref_path", type=str, default='/home/avskribchenko/utils-models/cifar10_test_ref_stats.json')
+    parser.add_argument("--detector_url", type=str, default='/home/avskribchenko/utils-models/inception-2015-12-05.pkl')
+    parser.add_argument("--total_eval_samples", type=int, default=10000)
+    
 
     args = parser.parse_args()
     env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
