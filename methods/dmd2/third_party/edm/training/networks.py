@@ -302,7 +302,7 @@ class SongUNet(torch.nn.Module):
                 attn = (res in attn_resolutions)
                 self.enc[f'{res}x{res}_block{idx}'] = UNetBlock(in_channels=cin, out_channels=cout, attention=attn, **block_kwargs)
         skips = [block.out_channels for name, block in self.enc.items() if 'aux' not in name]
-
+        
         # Decoder.
         self.dec = torch.nn.ModuleDict()
         for level, mult in reversed(list(enumerate(channel_mult))):
@@ -323,7 +323,7 @@ class SongUNet(torch.nn.Module):
                 self.dec[f'{res}x{res}_aux_norm'] = GroupNorm(num_channels=cout, eps=1e-6)
                 self.dec[f'{res}x{res}_aux_conv'] = Conv2d(in_channels=cout, out_channels=out_channels, kernel=3, **init_zero)
 
-    def forward(self, x, noise_labels, class_labels, augment_labels=None):
+    def forward(self, x, noise_labels, class_labels, augment_labels=None, return_bottleneck=False):
         # Mapping.
         emb = self.map_noise(noise_labels)
         emb = emb.reshape(emb.shape[0], 2, -1).flip(1).reshape(*emb.shape) # swap sin/cos
@@ -352,6 +352,9 @@ class SongUNet(torch.nn.Module):
                 x = block(x, emb) if isinstance(block, UNetBlock) else block(x)
                 skips.append(x)
 
+        if return_bottleneck:
+            return x 
+        
         # Decoder.
         aux = None
         tmp = None
