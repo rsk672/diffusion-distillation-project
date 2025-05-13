@@ -145,9 +145,6 @@ class TrainLoop:
                     ),
                 )
 
-        # dist_util.sync_params(self.model.parameters())
-        # dist_util.sync_params(self.model.buffers())
-
     def _load_ema_parameters(self, rate):
         ema_params = copy.deepcopy(self.mp_trainer.master_params)
 
@@ -177,18 +174,12 @@ class TrainLoop:
             self.opt.load_state_dict(state_dict)
 
     def run_loop(self):
-        #print(f'RUN LOOP HERE {self.data=}')
-        #print(f'{self.lr_anneal_steps=} {self.step=} {self.lr_anneal_steps=}')
         while not self.lr_anneal_steps or self.step < self.lr_anneal_steps:
-            #print('entered while loop')
             batch, cond = next(self.data)
-            #print(f'got batch {batch=} {cond=}')
             self.run_step(batch, cond)
             if self.step % self.log_interval == 0:
-                # print('logger dumpvks...')
                 logger.dumpkvs()
             if self.step % self.save_interval == 0:
-                print('save...')
                 self.save()
                 # Run for a finite amount of time in integration tests.
                 if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
@@ -198,7 +189,6 @@ class TrainLoop:
             self.save()
 
     def run_step(self, batch, cond):
-        # print('run step')
         self.forward_backward(batch, cond)
         took_step = self.mp_trainer.optimize(self.opt)
         if took_step:
@@ -208,10 +198,8 @@ class TrainLoop:
         self.log_step()
 
     def forward_backward(self, batch, cond):
-        # print('forward backward!!!')
         self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
-            # print(f'{dist_util.dev()=}')
             micro = batch[i : i + self.microbatch].to(dist_util.dev())
             micro_cond = {
                 k: v[i : i + self.microbatch].to(dist_util.dev())
@@ -428,15 +416,7 @@ class CMTrainLoop(TrainLoop):
         self.log_step()
 
     def _update_target_ema(self):
-        target_ema, scales = self.ema_scale_fn(self.global_step)
-        
-        # mp_tainer_param_groups_and_shapes = get_param_groups_and_shapes(
-        #     self.target_mode.named_parameters()
-        # )
-        # self.target_model_master_params = make_master_params(
-        #     self.target_model_param_groups_and_shapes
-        # )
-        
+        target_ema, scales = self.ema_scale_fn(self.global_step)  
         
         with th.no_grad():
             update_ema(

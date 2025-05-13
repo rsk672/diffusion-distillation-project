@@ -89,14 +89,6 @@ def get_param_groups_and_shapes(named_model_params):
         [(n, p) for (n, p) in named_model_params if p.ndim > 1],
         (1, -1),
     )
-    
-    # logger.log('scalar vector named params:')
-    # for np in scalar_vector_named_params:
-    #     logger.log(f'{np=}')
-    
-    # logger.log('matrix named params:')
-    # for np in matrix_named_params:
-    #     logger.log(f'{np=}')
         
     return [scalar_vector_named_params, matrix_named_params]
 

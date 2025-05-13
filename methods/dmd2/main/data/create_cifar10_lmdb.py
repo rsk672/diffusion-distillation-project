@@ -29,7 +29,6 @@ def get_array_shape_from_lmdb(lmdb_path, array_name):
             image_shape = tuple(map(int, image_shape.split()))
     return image_shape 
 
-# Example usage
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str, required=True, help="Path to CIFAR-10 images")
@@ -39,17 +38,14 @@ def main():
 
     args = parser.parse_args()
 
-    total_array_size = 10000000000  # Adjust to your need, set to 10GB by default for CIFAR-10
+    total_array_size = 10000000000
     env = lmdb.open(args.lmdb_path, map_size=total_array_size * 2) 
 
-    # Read labels and create mapping
     labels_df = pd.read_csv(args.label_file)
     
-    # Create a label-to-index mapping
     unique_labels = labels_df['label'].unique()
     label_to_index = {label: idx for idx, label in enumerate(unique_labels)}
 
-    # Save the label-to-index mapping to a JSON file
     with open(args.mapping_path, 'w') as f:
         json.dump(label_to_index, f)
 
@@ -77,7 +73,6 @@ def main():
         'labels': label_list
     }
 
-    # Store arrays in LMDB
     store_arrays_to_lmdb(env, data_dict)
 
     with env.begin(write=True) as txn:

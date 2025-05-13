@@ -34,7 +34,7 @@ def compute_diversity_score(lpips_loss_func, images, device):
     images = np.stack([np.array(image) for image in images], axis=0)
     
     images = torch.tensor(images).to(device).float() / 255.0
-    images = images.permute(0, 3, 1, 2)  # Convert to NCHW
+    images = images.permute(0, 3, 1, 2)
     
     num_images = images.shape[0]
     loss_list = []

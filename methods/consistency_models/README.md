@@ -1,93 +1,81 @@
 # Consistency Models
 
-This repository contains the codebase for [Consistency Models](https://arxiv.org/abs/2303.01469), implemented using PyTorch for conducting large-scale experiments on ImageNet-64, LSUN Bedroom-256, and LSUN Cat-256. We have based our repository on [openai/guided-diffusion](https://github.com/openai/guided-diffusion), which was initially released under the MIT license. Our modifications have enabled support for consistency distillation, consistency training, as well as several sampling and editing algorithms discussed in the paper.
+Здесь содержится код для обучения EDM и её дальнейшей дистилляции в Consistency Model. 
 
-The repository for CIFAR-10 experiments is in JAX and can be found at [openai/consistency_models_cifar10](https://github.com/openai/consistency_models_cifar10).
+Все скрипты для обучения и семплинга запускаются из директории `scripts/`.
 
-# Pre-trained models
+## Окружение
 
-We have released checkpoints for the main models in the paper. Before using these models, please review the corresponding [model card](model-card.md) to understand the intended use and limitations of these models.
+Для запуска кода следует создать conda-окружение на основании файла `consistency_models.yml`:
 
-Here are the download links for each model checkpoint:
+`conda env create -f dmd2.yml -n consistency_models`
 
- * EDM on ImageNet-64: [edm_imagenet64_ema.pt](https://openaipublic.blob.core.windows.net/consistency/edm_imagenet64_ema.pt)
- * CD on ImageNet-64 with l2 metric: [cd_imagenet64_l2.pt](https://openaipublic.blob.core.windows.net/consistency/cd_imagenet64_l2.pt)
- * CD on ImageNet-64 with LPIPS metric: [cd_imagenet64_lpips.pt](https://openaipublic.blob.core.windows.net/consistency/cd_imagenet64_lpips.pt)
- * CT on ImageNet-64: [ct_imagenet64.pt](https://openaipublic.blob.core.windows.net/consistency/ct_imagenet64.pt)
- * EDM on LSUN Bedroom-256: [edm_bedroom256_ema.pt](https://openaipublic.blob.core.windows.net/consistency/edm_bedroom256_ema.pt)
- * CD on LSUN Bedroom-256 with l2 metric: [cd_bedroom256_l2.pt](https://openaipublic.blob.core.windows.net/consistency/cd_bedroom256_l2.pt)
- * CD on LSUN Bedroom-256 with LPIPS metric: [cd_bedroom256_lpips.pt](https://openaipublic.blob.core.windows.net/consistency/cd_bedroom256_lpips.pt)
- * CT on LSUN Bedroom-256: [ct_bedroom256.pt](https://openaipublic.blob.core.windows.net/consistency/ct_bedroom256.pt)
- * EDM on LSUN Cat-256: [edm_cat256_ema.pt](https://openaipublic.blob.core.windows.net/consistency/edm_cat256_ema.pt)
- * CD on LSUN Cat-256 with l2 metric: [cd_cat256_l2.pt](https://openaipublic.blob.core.windows.net/consistency/cd_cat256_l2.pt)
- * CD on LSUN Cat-256 with LPIPS metric: [cd_cat256_lpips.pt](https://openaipublic.blob.core.windows.net/consistency/cd_cat256_lpips.pt)
- * CT on LSUN Cat-256: [ct_cat256.pt](https://openaipublic.blob.core.windows.net/consistency/ct_cat256.pt)
+Далее его необходимо активировать:
 
-# Dependencies
+`conda activate consistency_models`
 
-To install all packages in this codebase along with their dependencies, run
-```sh
-pip install -e .
-```
+И в активированном окружении выполнить команду:
 
-To install with Docker, run the following commands:
-```sh
-cd docker && make build && make run
-```
+`pip install -e .`
 
-# Model training and sampling
+## Датасет
 
-We provide examples of EDM training, consistency distillation, consistency training, single-step generation, and multistep generation in [scripts/launch.sh](scripts/launch.sh).
+В рамках экспериментов работа велась с датасетом CIFAR-10. В нужном формате датасет для обучения можно скачать по [ссылке](https://disk.yandex.ru/d/NdbRhJuvqZ8w2A). Использовалось оригинальное разбиение датасета на обучающую и тестовую часть размерами 50000 и 10000 изображений соответственно.
 
-# Evaluations
+## Обучение EDM
 
-To compare different generative models, we use FID, Precision, Recall, and Inception Score. These metrics can all be calculated using batches of samples stored in `.npz` (numpy) files. One can evaluate samples with [cm/evaluations/evaluator.py](evaluations/evaluator.py) in the same way as described in [openai/guided-diffusion](https://github.com/openai/guided-diffusion), with reference dataset batches provided therein.
+Обучить EDM можно следующим образом: 
 
-## Use in 🧨 diffusers
+```python edm_train.py --attention_resolutions 16 --class_cond True --use_scale_shift_norm True --dropout 0.0 --ema_rate 0.999,0.9999,0.9999432189950708 --global_batch_size 256 --image_size 32 --lr 0.0001 --num_channels 128 --num_head_channels 32 --num_res_blocks 3 --resblock_updown True --schedule_sampler lognormal --use_fp16 False --weight_decay 0.0 --weight_schedule karras --data_dir $DATASET_PATH --logging_dir $LOGGING_DIR```
 
-Consistency models are supported in [🧨 diffusers](https://github.com/huggingface/diffusers) via the [`ConsistencyModelPipeline` class](https://huggingface.co/docs/diffusers/main/en/api/pipelines/consistency_models). Below we provide an example:
+`$DATASET_PATH` - путь до скачанного датасета CIFAR-10
 
-```python
-import torch
+`$LOGGING_DIR` - директория, куда будут сохранены логи и чекпоинт модели.
 
-from diffusers import ConsistencyModelPipeline
+## Дистилляция EDM в Consistency Model
 
-device = "cuda"
-# Load the cd_imagenet64_l2 checkpoint.
-model_id_or_path = "openai/diffusers-cd_imagenet64_l2"
-pipe = ConsistencyModelPipeline.from_pretrained(model_id_or_path, torch_dtype=torch.float16)
-pipe.to(device)
+Обученную EDM можно дистиллировать в Consistency Model с помощью следующего запуска:
 
-# Onestep Sampling
-image = pipe(num_inference_steps=1).images[0]
-image.save("consistency_model_onestep_sample.png")
+```python cm_train.py --training_mode consistency_distillation --target_ema_mode fixed --start_ema 0.95 --scale_mode fixed --start_scales 40 --total_training_steps 600000 --loss_norm l2 --lr_anneal_steps 0 --teacher_model_path $TEACHER_MODEL_PATH --attention_resolutions 16 --class_cond True --use_scale_shift_norm True --dropout 0.0 --teacher_dropout 0.1 --ema_rate 0.999,0.9999,0.9999432189950708 --global_batch_size 128 --image_size 32 --lr 0.000008 --num_channels 128 --num_head_channels 32 --num_res_blocks 3 --resblock_updown True --schedule_sampler uniform --use_fp16 True --weight_decay 0.0 --weight_schedule uniform --data_dir $DATASET_PATH --logging_dir $LOGGING_DIR```
 
-# Onestep sampling, class-conditional image generation
-# ImageNet-64 class label 145 corresponds to king penguins
+`$DATASET_PATH` - путь до скачанного датасета CIFAR-10
 
-class_id = 145
-class_id = torch.tensor(class_id, dtype=torch.long)
+`$LOGGING_DIR` - директория, куда будут сохранены логи и чекпоинт модели
 
-image = pipe(num_inference_steps=1, class_labels=class_id).images[0]
-image.save("consistency_model_onestep_sample_penguin.png")
+`$TEACHER_MODEL_PATH` - путь до чекпоинта обученной EDM
 
-# Multistep sampling, class-conditional image generation
-# Timesteps can be explicitly specified; the particular timesteps below are from the original Github repo.
-# https://github.com/openai/consistency_models/blob/main/scripts/launch.sh#L77
-image = pipe(timesteps=[22, 0], class_labels=class_id).images[0]
-image.save("consistency_model_multistep_sample_penguin.png")
-```
-You can further speed up the inference process by using `torch.compile()` on `pipe.unet` (only supported from PyTorch 2.0). For more details, please check out the [official documentation](https://huggingface.co/docs/diffusers/main/en/api/pipelines/consistency_models). This support was contributed to 🧨 diffusers by [dg845](https://github.com/dg845) and [ayushtues](https://github.com/ayushtues).
+## Семплирование
 
-# Citation
+Представленные ниже скрипты генерируют .npz файл с изображениями. Этот файл можно передать в скрипты для подсчёта метрик качества, располагающихся [здесь](https://github.com/rsk672/diffusion-distillation-project/tree/main/metrics).
 
-If you find this method and/or code useful, please consider citing
+### Семплинг из EDM
 
-```bibtex
-@article{song2023consistency,
-  title={Consistency Models},
-  author={Song, Yang and Dhariwal, Prafulla and Chen, Mark and Sutskever, Ilya},
-  journal={arXiv preprint arXiv:2303.01469},
-  year={2023},
-}
-```
+Осуществляется следующим образом:
+
+```python image_sample.py --training_mode edm --batch_size 500 --sigma_max 80 --sigma_min 0.002 --s_churn 0 --steps 40 --sampler heun --model_path $EDM_MODEL_PATH --attention_resolutions 16  --class_cond True --dropout 0.1 --image_size 32 --num_channels 128 --num_head_channels 32 --num_res_blocks 3 --num_samples $NUM_SAMPLES --resblock_updown True --use_fp16 True --use_scale_shift_norm True --weight_schedule karras```
+
+`$EDM_MODEL_PATH` - путь до чекпоинта обученной EDM
+
+`$NUM_SAMPLES` - количество сгенерированных семплов
+
+### Семплинг из Consistency Model (одношаговый)
+
+Осуществляется следующим образом:
+
+```python image_sample.py --batch_size 500 --training_mode consistency_distillation --sampler onestep --model_path $CONSISTENCY_MODEL_PATH --attention_resolutions 16 --class_cond True --use_scale_shift_norm True --dropout 0.0 --image_size 32 --num_channels 128 --num_head_channels 32 --num_res_blocks 3 --num_samples $NUM_SAMPLES --resblock_updown True --use_fp16 True --weight_schedule uniform```
+
+`$CONSISTENCY_MODEL_PATH` - путь до чекпоинта Consistency Model
+
+`$NUM_SAMPLES` - количество сгенерированных семплов
+
+### Семплинг из Consistency Model (многошаговый)
+
+Осуществляется следующим образом:
+
+```python image_sample.py --batch_size 500 --training_mode consistency_distillation --sampler multistep --ts $TIMESTEPS  --model_path $CHECKPOINT_MODEL_PATH --attention_resolutions 16 --class_cond True --use_scale_shift_norm True --dropout 0.0 --image_size 32 --num_channels 128 --num_head_channels 32 --num_res_blocks 3 --num_samples $NUM_SAMPLES --resblock_updown True --use_fp16 True --weight_schedule uniform```
+
+`$CONSISTENCY_MODEL_PATH` - путь до чекпоинта Consistency Model
+
+`$NUM_SAMPLES` - количество сгенерированных семплов
+
+Важное отличие от одношагового семплинга заключается в наличии аргумента ts. $TIMESTEPS должен представлять собой строку из временных шагов, по которым осуществляется многошаговый семплинг, например `0,19,39`.

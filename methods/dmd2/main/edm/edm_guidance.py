@@ -23,8 +23,6 @@ class EDMGuidance(nn.Module):
         with dnnlib.util.open_url(args.model_id) as f:
            temp_edm = pickle.load(f)['ema']
         
-        #with open(args.model_id) as f:
-            #temp_edm = pickle.load(f)['ema']
 
         # initialize the real unet 
         self.real_unet = get_edm_network(args)        

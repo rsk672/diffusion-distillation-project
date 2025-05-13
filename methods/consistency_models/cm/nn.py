@@ -65,12 +65,7 @@ def update_ema(target_params, source_params, rate=0.99):
     :param source_params: the source parameter sequence.
     :param rate: the EMA rate (closer to 1 means slower).
     """
-    #logger.log(f'{target_params.shape=}')
-    #logger.log(f'{source_params.shape=}')
-    #logger.log(f'{rate.shape=}')
     for targ, src in zip(target_params, source_params):
-        #print(f'{targ.shape=}')
-        #print(f'{src.shape=}')
         targ.detach().mul_(rate).add_(src, alpha=1 - rate)
 
 

@@ -24,7 +24,7 @@ def main():
 
     dist_util.setup_dist()
     
-    logger.configure('./logs-edm-train')
+    logger.configure(args.logging_dir)
     
     logger.log("creating model and diffusion...")
     

@@ -344,11 +344,11 @@ class KarrasDenoiser:
                 append_dims(x, x_t.ndim)
                 for x in self.get_scalings_for_boundary_condition(sigmas)
             ]
-        #logger.log('denoise')
+
         rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
-        #logger.log('before model forward')
+
         model_output = model(c_in * x_t, rescaled_t, **model_kwargs)
-        #logger.log('after model forward')
+
         denoised = c_out * model_output + c_skip * x_t
         return model_output, denoised
 
@@ -383,10 +383,6 @@ def karras_sample(
         sigmas = get_sigmas_karras(steps, sigma_min, sigma_max, rho, device=device)
 
     x_T = generator.randn(*shape, device=device) * sigma_max
-    
-    #print('did x_T')
-    
-    #logger.log(f'{device=}')
 
     sample_fn = {
         "heun": sample_heun,
@@ -410,14 +406,10 @@ def karras_sample(
         sampler_args = {}
 
     def denoiser(x_t, sigma):
-        #logger.log('denoiser start')
         _, denoised = diffusion.denoise(model, x_t, sigma, **model_kwargs)
         if clip_denoised:
             denoised = denoised.clamp(-1, 1)
-        #logger.log('denoiser end')
         return denoised
-    
-    #logger.log('calling sample_fn...')
 
     x_0 = sample_fn(
         denoiser,
@@ -428,8 +420,6 @@ def karras_sample(
         callback=callback,
         **sampler_args,
     )
-    
-    #logger.log('called sample_fn!')
     
     return x_0.clamp(-1, 1)
 
@@ -530,7 +520,6 @@ def sample_heun(
         indices = tqdm(indices)
 
     for i in indices:
-        #logger.log('sample heun loop iteration...')
         gamma = (
             min(s_churn / (len(sigmas) - 1), 2**0.5 - 1)
             if s_tmin <= sigmas[i] <= s_tmax
@@ -563,7 +552,7 @@ def sample_heun(
             d_2 = to_d(x_2, sigmas[i + 1], denoised_2)
             d_prime = (d + d_2) / 2
             x = x + d_prime * dt
-    #logger.log('sample heun end')
+
     return x
 
 
