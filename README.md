@@ -2,13 +2,15 @@
 
 ## Методы
 
-В `methods/consistency_models` расположен информация код для обучения EDM и её дистилляции в Consistency Model.В `methods/dmd2` находится код и подробная информация о запусках метода DMD2.
+В `methods/consistency_models` расположен информация код для обучения EDM и её дистилляции в Consistency Model.
+
+В `methods/dmd2` находится код и подробная информация о запусках метода DMD2.
 
 В `examples/` расположены примении генерации Consistency Model до и после интеграции с методом DMD2.
 
 ## Данные
 
-На данный момент метрики подсчитаны для датасетов MS-COCO-2014 и Laion Aesthethics.
+Предусмотрен расчёт метрик для датасетов MS-COCO-2014 и Laion Aesthethics.
 
 Скачать используемый срез датасета MS-COCO-2014 можно по ссылке: https://disk.yandex.ru/d/mYQYI6rJAgvyJA.
 
