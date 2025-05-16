@@ -99,3 +99,11 @@
 `$REF_STATS_PATH` - путь до файла со статистиками для FID, посчитанными на тестовой части датасета
 
 `$INCEPTION_MODEL_PATH` - путь до чекпоинта модели InceptionV3, используемой для подсчета FID
+
+## Чекпоинты
+
+Чекпоинт EDM, на основании которой производилась дистилляция в Consistency Model, можно скачать [здесь](https://disk.yandex.ru/d/NlhpRu8i79___w).
+
+Чекпоинт Consistency Model, полученный в ходе дистилляции EDM, можно скачать [здесь](https://disk.yandex.ru/d/PrKIM2w9nEgy1g).
+
+Чекпоинт Consistency Model, полученный после интеграции в метод DMD2 в роли генератора, можно скачать [по ссылке](https://disk.yandex.ru/d/BYQJQPr44GhtJA). 
